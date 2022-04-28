@@ -1,0 +1,14 @@
+{
+    "low_res_name":"nta",
+    "super_res_name":"taxi",
+    "att_path": "../data-processing/reality/attributes/",
+    "adj_path": "../data-processing/reality/adjacencies/",
+    "batch_size": 128,
+    "epochs": 5000,
+    "learning_rate": 1e-2,
+    "learning_rate_step": 1500,
+    "learning_rate_ratio": 1,
+    "attention": 0,
+    "epoch_check": 500,
+    "log": 0
+}

@@ -1,0 +1,16 @@
+{
+    "low_res_name":"taxi",
+    "super_res_name":"tract",
+    "data_path": "../data-processing/reality/",
+    "input_dim": 1,
+    "hidden_dim": 64,
+    "output_dim": 1,
+    "batch_size": 128,
+    "epochs": 2000,
+    "learning_rate": 1e-5,
+    "learning_rate_step": 1500,
+    "learning_rate_ratio": 1,
+    "attention": 0,
+    "epoch_check": 100,
+    "log": 0
+}

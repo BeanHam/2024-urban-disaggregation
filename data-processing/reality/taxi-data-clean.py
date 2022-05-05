@@ -33,8 +33,15 @@ def main():
     geodata_taxi, A_taxi = get_adjacency(taxi_root, boundary, 'taxi')
     geodata_tract, A_tract = get_adjacency(tract_root, boundary, 'tract')
     
+    ## get linkage
+    puma_nta_linkage = get_linkage(geodata_puma, geodata_nta, "puma_nta")
+    nta_taxi_linkage = get_linkage(geodata_nta, geodata_taxi, "nta_taxi")
+    taxi_tract_linkage = get_linkage(geodata_taxi, geodata_tract, "taxi_tract")
+    nta_tract_linkage = get_linkage(geodata_nta, geodata_tract, "nta_tract")
+    
     ## get attributes
-    get_attributes(parameters, geodata_puma, geodata_nta, geodata_taxi)
+    print(f"Prepare attributes...")
+    get_attributes(parameters, geodata_puma, geodata_nta, geodata_taxi, geodata_tract)
     
 if __name__ == "__main__":
     main()

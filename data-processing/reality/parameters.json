@@ -27,7 +27,7 @@
         "2015": ["tpep_pickup_datetime", "pickup_longitude", "pickup_latitude"], 
         "2016": ["tpep_pickup_datetime", "pickup_longitude", "pickup_latitude"]}, 
     "uni_columns": ["pickup_datetime", "long", "lat"], 
-    "years": ["2016"],
+    "years": ["2015"],
     "zones": [12,88,87,261,13,209,45,231,232,148,144,211,125,158,249,114,113,79,4,
               224, 137, 107, 234, 90, 68, 246, 186, 100, 164, 170, 233, 229, 162, 
               161, 163, 230, 48, 50, 143, 142, 43, 237, 141, 140, 262, 263, 236, 75, 

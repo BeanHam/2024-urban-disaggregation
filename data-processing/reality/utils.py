@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import geojson
 import itertools
-import geopandas as gpd
+import geopandas
 import matplotlib.pyplot as plt
 from shapely import wkt
 from shapely.geometry import Polygon, Point, LineString, MultiPolygon
@@ -35,10 +35,10 @@ def get_boundary(root, parameters):
     zones = parameters['zones']
     
     ## make the data -> geodata
-    gdf = gpd.read_file(root)
+    gdf = geopandas.read_file(root)
     gdf.crs = 'epsg:4326'
     data['the_geom'] = data['the_geom'].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(data, crs='epsg:4326')
+    gdf = geopandas.GeoDataFrame(data, crs='epsg:4326')
     gdf = gdf[np.isin(gdf.OBJECTID, zones)]
     
     ## generate boundary
@@ -49,7 +49,7 @@ def get_boundary(root, parameters):
         new_polygons.append(multi_polygons[np.where(areas == np.max(areas))[0][0]])
     gdf.the_geom = new_polygons
     polygons = [i for i in gdf.the_geom.values]
-    boundary = gpd.GeoSeries(unary_union(polygons))[0]
+    boundary = geopandas.GeoSeries(unary_union(polygons))[0]
     
     return boundary
 
@@ -58,10 +58,10 @@ def get_adjacency(root, boundary, data_name):
     
     ## load data & make geodata
     data = pd.read_csv(root)
-    gdf = gpd.read_file(root)
+    gdf = geopandas.read_file(root)
     gdf.crs = 'epsg:4326'
     data['the_geom'] = data['the_geom'].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(data, crs='epsg:4326')
+    gdf = geopandas.GeoDataFrame(data, crs='epsg:4326')
     
     ## subset regions within boundary
     geodata = []
@@ -71,25 +71,47 @@ def get_adjacency(root, boundary, data_name):
             if polygon.intersects(boundary):
                 area = polygon.area*10**11
                 geodata.append([polygon, area])
-    geodata = pd.DataFrame(geodata, columns=['the_geom', 'shape_area'])
+    geodata = pd.DataFrame(geodata, columns=['geometry', 'shape_area'])
     
     ## generate adjacency matrix
     A = np.zeros((geodata.shape[0], geodata.shape[0]))
     for i in range(len(geodata)):
         for j in range(len(geodata)):
-            A[i,j] = geodata.the_geom[i].intersects(geodata.the_geom[j])
+            A[i,j] = geodata.geometry[i].intersects(geodata.geometry[j])
     
     ## save  
-    geodata.to_csv(f'geodata/geodata_{data_name}.csv',header=True)
-    np.save(f'adjacencies/A_{data_name}.npy', A)
+    geodata.to_csv(f'geodata/{data_name}.csv',header=True)
+    np.save(f'adjacencies/{data_name}.npy', A)
     
     return geodata, A
+
+
+
+def get_linkage(low_res_geodata, super_res_geodata, linkage_name):
+    
+    """
+    
+    This function is used to get the linkage between low resolution graph to
+    super resolution graph using geodata.
+    
+    
+    """
+    linkage = np.zeros((low_res_geodata.shape[0], super_res_geodata.shape[0]))
+    for i in range(len(low_res_geodata)):
+        for j in range(len(super_res_geodata)):
+            linkage[i,j] = low_res_geodata.geometry[i].contains(super_res_geodata.geometry[j].centroid)
+       
+    ## save  
+    np.save(f'linkage/{linkage_name}.npy', linkage)
+    
+    return linkage
 
 
 def get_attributes(parameters,
                    geodata_puma, 
                    geodata_nta,
-                   geodata_taxi):
+                   geodata_taxi,
+                   geodata_tract):
     
     """
     
@@ -111,9 +133,20 @@ def get_attributes(parameters,
     long_right = parameters['long_right']
     long_left = parameters['long_left']
     
+    ## change geodata from pd.Dataframe to geo.Dataframe
+    geodata_puma = geopandas.GeoDataFrame(geodata_puma, geometry='geometry')
+    geodata_nta = geopandas.GeoDataFrame(geodata_nta, geometry='geometry')
+    geodata_taxi = geopandas.GeoDataFrame(geodata_taxi, geometry='geometry')
+    geodata_tract = geopandas.GeoDataFrame(geodata_tract, geometry='geometry')
+    
     ###################### load all data ############################
+    X_puma = []
+    X_nta = []
+    X_taxi = []
+    X_tract = []
+    
     for year in years:
-        print(f"   --Load {year} data...")
+        print(f"   -- Load {year} data...")
         dirt = root + year + '/'
         files = os.listdir(dirt)
         variables = column_names[year]
@@ -131,9 +164,10 @@ def get_attributes(parameters,
                             (data.lat>= lat_bottom) &\
                             (data.long<= long_right) &\
                             (data.long>= long_left)]
-            data['points'] = [Point(data.long.values[i], data.lat.values[i]) for i in range(len(data))]
+            data = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data.long, data.lat))
             whole_data.append(data.values)
-        whole_data = pd.DataFrame(np.concatenate(whole_data), columns=uni_columns+['points'])
+        whole_data = pd.DataFrame(np.concatenate(whole_data), columns=uni_columns+['geometry'])
+        whole_data = geopandas.GeoDataFrame(whole_data, geometry='geometry')
         
         ###################### extract date & time ############################
         if year != '2016':
@@ -158,50 +192,56 @@ def get_attributes(parameters,
         UNIQUE_TIME = np.unique(times)
         
         ###################### attribute data low resolution ############################
-        print(f"   --Prepare {year} node attributes...")
+        print(f"   -- Prepare {year} node attributes...")
         
-        #X_puma = []
-        X_nta = []
-        X_taxi = []
-        #X_tract = []
-        
+        iteration = 1
         for uni_date in UNIQUE_DATES:
-            for uni_time in UNIQUE_TIME:    
+            for uni_time in UNIQUE_TIME:
+                
+                if iteration % 500 == 0:
+                    print(f'      -- [{iteration}/{len(UNIQUE_DATES)*len(UNIQUE_TIME)}]...')
+                
                 ## subset data
                 query = f"date == '{uni_date}' & time == '{uni_time}'"
                 hourly_data = whole_data.query(query)
                 
-                ## count taxi rides within each polygon - puma resolution
-                #count = []
-                #for poly in geodata_puma.the_geom:
-                #    count.append(sum([poly.contains(point) for point in hourly_data.points]))
-                #X_puma.append(count)
+                ## puma
+                puma = geopandas.sjoin(geodata_puma, hourly_data)
+                puma['index'] = puma.index
+                puma_count = np.zeros(len(geodata_puma))
+                puma_count[np.unique(puma.index)] = puma.groupby('index').count()['geometry'].values
+                X_puma.append(puma_count)
+                                
+                nta = geopandas.sjoin(geodata_nta, hourly_data)
+                nta['index'] = nta.index
+                nta_count = np.zeros(len(geodata_nta))
+                nta_count[np.unique(nta.index)] = nta.groupby('index').count()['geometry'].values
+                X_nta.append(nta_count)
                 
-                ## count taxi rides within each polygon - nta resolutioin
-                count = []
-                for poly in geodata_nta.the_geom:
-                    count.append(sum([poly.contains(point) for point in hourly_data.points]))
-                X_nta.append(count)
                 
-                ## count taxi rides within each polygon - taxi zones resolutioin
-                count = []
-                for poly in geodata_taxi.the_geom:
-                    count.append(sum([poly.contains(point) for point in hourly_data.points]))
-                X_taxi.append(count)
+                taxi = geopandas.sjoin(geodata_taxi, hourly_data)
+                taxi['index'] = taxi.index
+                taxi_count = np.zeros(len(geodata_taxi))
+                taxi_count[np.unique(taxi.index)] = taxi.groupby('index').count()['geometry'].values
+                X_taxi.append(taxi_count)
                 
-                ## count taxi rides within each polygon - tract resolutioin
-                #count = []
-                #for poly in geodata_tract.the_geom:
-                #    count.append(sum([poly.contains(point) for point in hourly_data.points]))
-                #X_tract.append(count)
+                tract = geopandas.sjoin(geodata_tract, hourly_data)
+                tract['index'] = tract.index
+                tract_count = np.zeros(len(geodata_tract))
+                tract_count[np.unique(tract.index)] = tract.groupby('index').count()['geometry'].values
+                X_tract.append(tract_count)                
                 
-        #X_puma = np.stack(X_puma)
-        X_nta = np.stack(X_nta)
-        X_taxi = np.stack(X_taxi)
-        #X_tract = np.stack(X_tract)
+                iteration += 1
+    
+    ## save data
+    X_puma = np.stack(X_puma)
+    X_nta = np.stack(X_nta)
+    X_taxi = np.stack(X_taxi)
+    X_tract = np.stack(X_tract)
+    
+    np.save(f'attributes/puma.npy', X_puma)
+    np.save(f'attributes/nta.npy', X_nta)
+    np.save(f'attributes/taxi.npy', X_taxi)
+    np.save(f'attributes/tract.npy', X_tract)
         
-        ## save
-        #np.save(f'attributes/X_puma_{year}.npy', X_puma)
-        np.save(f'attributes/X_nta_{year}.npy', X_nta)
-        np.save(f'attributes/X_taxi_{year}.npy', X_taxi)
-        #np.save(f'attributes/X_tract_{year}.npy', X_tract)
+    print(f"Done!")

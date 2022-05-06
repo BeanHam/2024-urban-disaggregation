@@ -34,6 +34,6 @@ class GraphSR(nn.Module):
     def forward(self, att, adj_super):
         
         ## down sampling layers
-        x = (self.proj*self.linkage).T@att
+        x = (self.proj).T@att
         
         return x

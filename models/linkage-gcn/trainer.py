@@ -13,15 +13,19 @@ def main():
     print('Load Parameters...')
     parser = argparse.ArgumentParser()
     parser.add_argument('parameter_path', help='path to the configuration of the model')
+    parser.add_argument('low_res_name')
+    parser.add_argument('super_res_name')
     opt = parser.parse_args()
     
     ################### unload parameters #################
     parameter_path = opt.parameter_path.lower()
+    low_res_name = opt.low_res_name.lower()
+    super_res_name = opt.super_res_name.lower()
     with open(parameter_path) as json_file:
         parameters = json.load(json_file)
         
-    low_res_name = parameters['low_res_name']
-    super_res_name = parameters['super_res_name']
+    #low_res_name = parameters['low_res_name']
+    #super_res_name = parameters['super_res_name']
     data_path = parameters['data_path']
     input_dim = parameters['input_dim']
     hidden_dim = parameters['hidden_dim']

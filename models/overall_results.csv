@@ -1,0 +1,4 @@
+,puma_nta,puma_taxi,puma_tract,nta_taxi,nta_tract,taxi_tract
+simple_ratio,199.484,180.553,47.584,138.571,42.803,27.291
+projection + GCN,136.606,66.905,20.361,76.194,20.098,19.562
+projection,31.106,25.920,8.927,15.372,7.124,5.473

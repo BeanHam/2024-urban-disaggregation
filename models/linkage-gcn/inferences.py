@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import argparse
+from itertools import combinations
 from utils import *
 from models import *
 
@@ -29,9 +30,7 @@ def main():
     ################### inference
     names = ['puma', 'nta', 'taxi', 'tract']
     losses = []
-    for i in range(len(names)-1):
-        low_res_name = names[i]
-        super_res_name = names[i+1]
+    for low_res_name, super_res_name in combinations(names, 2):
     
         ## load data
         att_low_res_path = data_path+'attributes/'+low_res_name+'.npy'
@@ -66,7 +65,8 @@ def main():
         geodata_super_res['diff'] = (torch.mean((pred_super - gt_super),dim=0)*X_super_max).detach().numpy()
         geodata_super_res.to_csv(f'visualization/vis_super_{low_res_name}_{super_res_name}.csv', header=True)
         
-    losses = pd.DataFrame(np.array(losses).reshape(1,-1), columns=['puma_nta', 'nta_taxi', 'taxi_tract'])
+    losses = pd.DataFrame(np.array(losses).reshape(1,-1), 
+                          columns=['puma_nta', 'puma_taxi', 'puma_tract', 'nta_taxi', 'nta_tract', 'taxi_tract'])
     losses.to_csv(f'inferences/{low_res_name}_{super_res_name}.csv')
     
 if __name__ == "__main__":

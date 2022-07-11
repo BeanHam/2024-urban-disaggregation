@@ -1,0 +1,6 @@
+,puma_nta,puma_tract,nta_tract,puma_block,nta_block,tract_block
+simple-ratio,199.4836,47.5837,42.8034,3.9219,3.7925,2.6701
+2D-linear,31.7243,9.1925,7.4279,1.7012,1.6963,2.5721
+2D-gcn,27.8089,7.3144,6.3411,1.4386,1.3843,1.5406
+3D-linear,,,,,,
+3D-gcn,,,,,,

@@ -1,14 +1,8 @@
 {
     "data_path": "../../data-processing/reality/",
-    "input_dim": 1,
-    "hidden_dim": 64,
-    "output_dim": 1,
-    "batch_size": 128,
-    "epochs": 4000,
-    "learning_rate": 1e-5,
-    "learning_rate_step": 1500,
-    "learning_rate_ratio": 1,
-    "attention": 0,
-    "epoch_check": 100,
+    "batch_size": 64,
+    "epochs": 2500,
+    "learning_rate": 1e-4,
+    "epoch_check": 250,
     "log": 0
 }

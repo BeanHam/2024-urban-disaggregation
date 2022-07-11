@@ -14,36 +14,31 @@ class GraphConvolutionLayer(Module):
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
     """
 
-    def __init__(self,
-                 in_features, 
-                 out_features,
-                 bias=True):
+    def __init__(self, in_features, out_features, adj, bias=True):
         super(GraphConvolutionLayer, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
-            
+        self.adj = adj
+        
         ## linear layer
         self.linear_layer = nn.Linear(in_features, out_features, bias=bias)
-        nn.init.uniform_(self.linear_layer.weight, a=0,b=0.1)
-        self.relu = nn.ReLU()
-
-    def forward(self, att, adj):
         
-        ## if this is a projection layer    
-        output = self.relu(self.linear_layer(adj@att))
-
+        ## initiate weights
+        nn.init.xavier_uniform_(self.linear_layer.weight, gain=0.01)
+        nn.init.constant_(self.linear_layer.bias, 0.01)
+        
+    def forward(self, att):
+        
+        ## forward
+        output = self.linear_layer(torch.matmul(self.adj, att))
         return output
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' \
                + str(self.in_features) + ' -> ' \
-               + str(self.out_features) + ')'
+               + str(self.out_features) + ')' 
 
-    def __repr__(self):
-        return self.__class__.__name__ + ' (' \
-               + str(self.in_features) + ' -> ' \
-               + str(self.out_features) + ')'
-
+    
 class GraphSR(nn.Module):
     
     """
@@ -51,36 +46,29 @@ class GraphSR(nn.Module):
     
     """
     
-    def __init__(self, 
-                 input_dim,
-                 hidden_dim,
-                 output_dim,
-                 linkage):
+    def __init__(self, linkage):
         super().__init__()
         
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
         self.linkage = linkage
-                
-        ## projection
-        self.proj = nn.Parameter(torch.rand_like(self.linkage))
+        self.adj_size = linkage.size(1)
         
-        ## upsampling
-        self.gc1 = GraphConvolutionLayer(self.input_dim, self.hidden_dim)
-        self.gc2 = GraphConvolutionLayer(self.hidden_dim, 2*self.hidden_dim)
-        self.gc3 = GraphConvolutionLayer(2*self.hidden_dim, self.hidden_dim)
-        self.gc4 = GraphConvolutionLayer(self.hidden_dim, self.output_dim)
-
-    def forward(self, att, adj_super):
+        ## projection
+        self.proj = nn.Parameter(torch.randn_like(self.linkage))
+        nn.init.xavier_uniform_(self.proj, gain=0.01)
+        self.adj_super = nn.Parameter(torch.randn(self.adj_size, self.adj_size))
+        nn.init.xavier_uniform_(self.adj_super, gain=0.01)
+        
+        ## gcc layers
+        self.gc1 = GraphConvolutionLayer(1,1,self.adj_super)
+        self.gc2 = GraphConvolutionLayer(1,1,self.adj_super)
+        
+    def forward(self, att):
         
         ## projection layer
-        x = (self.proj*self.linkage).T@att
+        x = F.relu((self.proj).T@att)
         
-        ## linear layers
-        x = self.gc1(x, adj_super)
-        x = self.gc2(x, adj_super)
-        x = self.gc3(x, adj_super)
-        x = self.gc4(x, adj_super)
+        ## gcn layers
+        x = F.relu(self.gc1(x))
+        x = F.relu(self.gc2(x))
         
         return x

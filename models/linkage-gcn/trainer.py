@@ -17,52 +17,31 @@ def main():
     parser.add_argument('super_res_name')
     opt = parser.parse_args()
     
-    ################### unload parameters #################
+    ################# unload parameters ##########
     parameter_path = opt.parameter_path.lower()
     low_res_name = opt.low_res_name.lower()
     super_res_name = opt.super_res_name.lower()
     with open(parameter_path) as json_file:
         parameters = json.load(json_file)
-        
-    #low_res_name = parameters['low_res_name']
-    #super_res_name = parameters['super_res_name']
-    data_path = parameters['data_path']
-    input_dim = parameters['input_dim']
-    hidden_dim = parameters['hidden_dim']
-    output_dim = parameters['output_dim']
+    
     batch_size = parameters['batch_size']
-    epochs = parameters['epochs']
     learning_rate = parameters['learning_rate']
-    learning_rate_step = parameters['learning_rate_step']
-    learning_rate_ratio = parameters['learning_rate_ratio']
+    epochs = parameters['epochs']
     epoch_check = parameters['epoch_check']
     log = parameters['log']
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     ################### load data #################
     print('Load Datasets...')
+    dataset_train, dataset_val, dataset_test, X_max = load_data(low_res_name,
+                                                                super_res_name,
+                                                                parameters)
     
-    att_low_res_path = data_path+'attributes/'+low_res_name+'.npy'
-    adj_low_res_path = data_path+'adjacencies/'+low_res_name+'.npy'
-    att_super_res_path = data_path+'attributes/'+super_res_name+'.npy'
-    adj_super_res_path = data_path+'adjacencies/'+super_res_name+'.npy'
-    linkage_path = data_path+'linkages/'+low_res_name+'_'+super_res_name+'.npy'
-    dataset_train, dataset_val, dataset_test = load_data(att_low_res_path, 
-                                                         adj_low_res_path, 
-                                                         att_super_res_path, 
-                                                         adj_super_res_path,
-                                                         linkage_path)
-    
-    ################### initiate model, optimizer, criterion, and scheduler #################
+    ############### initiate model #################
     print('Initialize Model...')
-    model = GraphSR(input_dim, 
-                    hidden_dim, 
-                    output_dim,
-                    dataset_train.linkage.to(device)).to(device)
+    model = GraphSR(dataset_train.linkage.to(device)).to(device)
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
     criterion = nn.L1Loss().to(device)
-    scheduler = StepLR(optimizer, learning_rate_step, learning_rate_ratio)
-    
     
     ################### load from previous training
     if log: 
@@ -74,7 +53,7 @@ def main():
     ################### training & evaluation #################
     print('Training Model...')
     for epoch in tqdm(range(epochs)):
-        train(model, criterion, optimizer, scheduler, device, batch_size, dataset_train)
+        train(model, criterion, optimizer, device, batch_size, dataset_train)
         loss,_,_,_ = evaluation(model, criterion, device, batch_size, dataset_val)
         
         ## save loss

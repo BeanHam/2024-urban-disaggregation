@@ -3,9 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR
-from torch.nn.parameter import Parameter
-from torch.nn.modules.module import Module
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
@@ -66,12 +63,12 @@ def load_data(low_res_name, super_res_name, parameters):
     linkage = torch.from_numpy(np.load(linkage_path)).float()
     
     ## min-max normalization: min=0
-    X_max = torch.max(torch.max(X_low), torch.max(X_super))
-    X_low = X_low/X_max
+    X_max = torch.max(X_super)    
+    X_low = X_low/torch.max(X_low)
     X_low = X_low[:,:,None]
-    X_super = X_super/X_max
+    X_super = X_super/torch.max(X_super)
     X_super = X_super[:,:,None]
-
+    
     ## split train, val & test
     X_low_train, X_low_test, X_super_train, X_super_test = train_test_split(X_low, 
                                                                             X_super, 

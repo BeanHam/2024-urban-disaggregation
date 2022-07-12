@@ -1,16 +1,8 @@
 {
-    "low_res_name":"puma",
-    "super_res_name":"nta",
     "data_path": "../../data-processing/reality/",
-    "input_dim": 1,
-    "hidden_dim": 64,
-    "output_dim": 1,
     "batch_size": 64,
-    "epochs": 500,
+    "epochs": 2000,
     "learning_rate": 1e-4,
-    "learning_rate_step": 1500,
-    "learning_rate_ratio": 1,
-    "attention": 0,
-    "epoch_check": 50,
+    "epoch_check": 200,
     "log": 0
 }

@@ -41,18 +41,22 @@ class taxi_data(torch.utils.data.Dataset):
     
 
 
-def load_data(att_low_res_path, 
-              adj_low_res_path, 
-              att_super_res_path, 
-              adj_super_res_path,
-              linkage_path):
+def load_data(low_res_name, super_res_name, parameters):
     
     """
     Function to load datasets
     
     Arg:
-        - path: path to node attributes & adjacency matrix
+        - parameters: parameter json file
     """
+    
+    ## data path
+    data_path = parameters['data_path']
+    att_low_res_path = data_path+'attributes/'+low_res_name+'.npy'
+    adj_low_res_path = data_path+'adjacencies/'+low_res_name+'.npy'
+    att_super_res_path = data_path+'attributes/'+super_res_name+'.npy'
+    adj_super_res_path = data_path+'adjacencies/'+super_res_name+'.npy'
+    linkage_path = data_path+'linkages/'+low_res_name+'_'+super_res_name+'.npy'
     
     ## load data
     X_low = torch.from_numpy(np.load(att_low_res_path)).float()
@@ -60,21 +64,6 @@ def load_data(att_low_res_path,
     A_low = torch.from_numpy(np.load(adj_low_res_path)).float()
     A_super = torch.from_numpy(np.load(adj_super_res_path)).float()
     linkage = torch.from_numpy(np.load(linkage_path)).float()
-    #linkage = linkage/torch.sum(linkage,dim=1, keepdim=True) ## normalize
-    
-    ## min-max normalization: min=0
-    X_low = X_low/torch.max(X_low)
-    X_low = X_low[:,:,None]
-    X_super = X_super/torch.max(X_super)
-    X_super = X_super[:,:,None]
-    
-    ## new adjacency matrix
-    D1 = torch.diag(torch.sum(A_low,dim=1)).float()
-    D2 = torch.diag(torch.sum(A_super,dim=1)).float()
-    D1_tilda = torch.sqrt(torch.linalg.inv(D1))
-    D2_tilda = torch.sqrt(torch.linalg.inv(D2))
-    A_low = D1_tilda@A_low@D1_tilda
-    A_super = D2_tilda@A_super@D2_tilda
     
     ## split train, val & test
     X_low_train, X_low_test, X_super_train, X_super_test = train_test_split(X_low, 
@@ -91,98 +80,3 @@ def load_data(att_low_res_path,
     dataset_test = taxi_data(X_low_test, X_super_test, A_low, A_super, linkage)
     
     return dataset_train, dataset_val, dataset_test
-
-
-def train(model, 
-          criterion, 
-          optimizer, 
-          scheduler,
-          device,
-          batch_size, 
-          dataset):
-    
-    """
-    Function to train the model
-    
-    Arg:
-        - model
-        - criterion: loss function
-        - optimizer
-        - scheduler: learing rate updater
-        - batch_size
-        - dataset: training dataset
-        
-    """
-    
-    ## training  
-    ## iterate through training dataset
-    for i in range(0, len(dataset), batch_size):
-        
-        ## batch data
-        indices = range(i, min(len(dataset), i+batch_size))        
-        X_batch_low, X_batch_super, A_low, A_super, linkage = zip(*[dataset[i] for i in indices])
-        X_batch_low = torch.stack(X_batch_low).to(device)
-        X_batch_super = torch.stack(X_batch_super).to(device)
-        A_low = A_low[0].to(device)
-        A_super = A_super[0].to(device)
-        linkage = linkage[0].to(device)
-        
-        ## prediction
-        pred = model(X_batch_low, A_super)
-        
-        ## loss
-        loss = criterion(X_batch_super, pred)
-        
-        ## back propogration
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-         
-
-            
-def evaluation(model, 
-               criterion, 
-               device,
-               batch_size, 
-               dataset):
-    
-        
-    """
-    Function to evaluate the model
-    
-    Arg:
-        - model
-        - criterion: loss function
-        - batch_size
-        - dataset: validation/test dataset
-        
-    """
-    
-    ## evaluation
-    pred_super = []
-    gt_super = []
-    gt_low = []
-    
-    for i in range(0, len(dataset), batch_size):
-        indices = range(i, min(len(dataset), i+batch_size))        
-        X_batch_low, X_batch_super, A_low, A_super, linkage = zip(*[dataset[i] for i in indices])
-        X_batch_low = torch.stack(X_batch_low).to(device)
-        X_batch_super = torch.stack(X_batch_super).to(device)
-        A_low = A_low[0].to(device)
-        A_super = A_super[0].to(device)
-        linkage = linkage[0].to(device)
-        with torch.no_grad():
-            pred = model(X_batch_low, A_super)
-            
-        pred_super.append(pred)
-        gt_super.append(X_batch_super)
-        gt_low.append(X_batch_low)
-        
-    pred_super = torch.cat(pred_super)
-    gt_super = torch.cat(gt_super)
-    gt_low = torch.cat(gt_low)
-    loss = criterion(pred_super, gt_super).cpu().item()
-    
-    return loss, pred_super, gt_super, gt_low
-    

@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import json
 import argparse
 from itertools import combinations
@@ -34,7 +33,7 @@ def main():
         dataset_train, dataset_val, dataset_test, X_max = load_data(low_res_name,
                                                                     super_res_name,
                                                                     parameters)
-    
+        
         ## load model
         model = GraphSR(dataset_train.linkage.to(device)).to(device)
         criterion = nn.L1Loss().to(device)

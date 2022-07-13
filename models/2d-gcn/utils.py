@@ -9,6 +9,12 @@ from torch.nn.modules.module import Module
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+## seed
+seed = 816
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
 class taxi_data(torch.utils.data.Dataset):
     
     """

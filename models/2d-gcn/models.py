@@ -56,6 +56,9 @@ class GraphSR(nn.Module):
         self.proj = nn.Parameter(torch.rand_like(self.linkage))
         nn.init.xavier_uniform_(self.proj.data, gain=0.01)
 
+        #self.proj_bias = nn.Parameter(torch.rand(self.linkage.size(1),1))
+        #nn.init.constant_(self.proj_bias.data, 0.01)
+
         ## learn adjacency
         self.adj_super = nn.Parameter(torch.randn(self.adj_size, self.adj_size))
         nn.init.xavier_uniform_(self.adj_super, gain=0.01)
@@ -67,7 +70,8 @@ class GraphSR(nn.Module):
         
         ## projection layer
         x = F.relu((self.proj).T@att)
-
+        #x = F.relu((self.proj).T@att + self.proj_bias)
+        
         ## gcn layers
         x = F.relu(self.gc1(x))
         

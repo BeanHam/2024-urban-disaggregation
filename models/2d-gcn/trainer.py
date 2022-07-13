@@ -2,83 +2,93 @@ import numpy as np
 import json
 import torch
 import argparse
-import os 
+import os
+from itertools import combinations
 from utils import *
 from models import *
+
+## seed
+seed = 816
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 
 
 def main():
     
-    ################# parameters #################
+    ## parameters
     print('Load Parameters...')
     parser = argparse.ArgumentParser()
-    parser.add_argument('parameter_path', help='path to the configuration of the model')
-    parser.add_argument('low_res_name')
-    parser.add_argument('super_res_name')
+    parser.add_argument('parameter_path')
     opt = parser.parse_args()
     
-    ################# unload parameters ##########
+    ## unload parameters
     parameter_path = opt.parameter_path.lower()
-    low_res_name = opt.low_res_name.lower()
-    super_res_name = opt.super_res_name.lower()
     with open(parameter_path) as json_file:
         parameters = json.load(json_file)
-    
     batch_size = parameters['batch_size']
     learning_rate = parameters['learning_rate']
     epochs = parameters['epochs']
     epoch_check = parameters['epoch_check']
-    log = parameters['log']
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    names = ['puma', 'nta', 'tract', 'block']
     
-    ################### load data #################
-    print('Load Datasets...')
-    dataset_train, dataset_val, dataset_test, X_max = load_data(low_res_name,
-                                                                super_res_name,
-                                                                parameters)
-    
-    ############### initiate model #################
-    print('Initialize Model...')
-    model = GraphSR(dataset_train.linkage.to(device)).to(device)
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
-    criterion = nn.L1Loss().to(device)
-    
-    ################### load from previous training
-    if log: 
-        model.load_state_dict(torch.load(f'model_state/graphSR_{low_res_name}_{super_res_name}'))
-        loss_track = np.load(f'logs/loss_track_{low_res_name}_{super_res_name}.npy')
-    else:
+    ## iterate all combinations
+    for low_res_name, super_res_name in combinations(names, 2):
+
+        ## load data
+        print('===================================')
+        print(f'{low_res_name} -> {super_res_name}...')
+        print('===================================')
+        print('Load Datasets...')
+        dataset_train, dataset_val, _, _ = load_data(low_res_name, super_res_name, parameters)
+        linkage = dataset_train.linkage
+
+        ## initiate model
+        print('Initialize Model...')
+        model = GraphSR(linkage).to(device)
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
+        criterion = nn.L1Loss().to(device)
         loss_track = []
-    
-    ################### training & evaluation #################
-    print('Training Model...')
-    loss_min = np.inf
-    for epoch in tqdm(range(epochs)):
-        train(model, criterion, optimizer, device, batch_size, dataset_train)
-        loss,_,_,_ = evaluation(model, criterion, device, batch_size, dataset_val)
-        
-        ## early stopping
-        if loss < loss_min:
 
-            ## save loss min
-            loss_min = loss
+        ## training & evaluation
+        print('Training Model...')
+        loss_min = np.inf
+        counter = 0
+        for epoch in tqdm(range(epochs)):
 
-            ## save loss
-            loss_track.append(loss)
-        
-            ## save results every epoch
-            torch.save(model.state_dict(), f'model_state/graphSR_{low_res_name}_{super_res_name}')
-            np.save(f'logs/loss_track_{low_res_name}_{super_res_name}.npy', loss_track)
+            ## training
+            train(model, criterion, optimizer, device, batch_size, dataset_train)
 
-            ## validation check
-            if epoch % epoch_check == 0:
-                print(f'Validation Loss: {round(loss, 4)}')
-        else:
+            ## evaluation
+            loss,_,_,_ = evaluation(model, criterion, device, batch_size, dataset_val)
 
-            print(f"Early Stopping at Epoch {epoch}")
-            break
+            ### early stopping: tolerance = 10
+            if counter >= 10:
+                ## early stop
+                print(f" Early Stopping at Epoch {epoch}")
+                print(f' Validation Loss: {round(loss, 5)}')
+                break
             
-    print('Done Training...')
+            ## check min loss
+            if loss < loss_min:
+
+                ## save loss min
+                loss_min = loss
+                loss_track.append(loss)
+
+                ## save results every epoch
+                torch.save(model.state_dict(), f'model_state/graphSR_{low_res_name}_{super_res_name}')
+                np.save(f'logs/loss_track_{low_res_name}_{super_res_name}.npy', loss_track)
+
+                ## validation check
+                if epoch % epoch_check == 0:
+                    print(f' Validation Loss: {round(loss, 5)}')
+            else:
+                counter += 1
+                
+        print('Done Training...')
+        print('                ')
     
 if __name__ == "__main__":
     main()

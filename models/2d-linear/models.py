@@ -1,7 +1,12 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+## seed
+seed = 816
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
 
 class GraphSR(nn.Module):
     
@@ -27,6 +32,5 @@ class GraphSR(nn.Module):
         
         ## projection layers
         x = F.relu((self.proj).T@att + self.proj_bias)
-
         return x
     

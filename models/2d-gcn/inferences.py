@@ -1,22 +1,20 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import json
 import argparse
 from itertools import combinations
 from utils import *
 from models import *
 
-
 def main():
     
-    ################# parameters #################
+    ## parameters
     print('Load Parameters...')
     parser = argparse.ArgumentParser()
     parser.add_argument('parameter_path')
     opt = parser.parse_args()
     
-    ################### unload parameters #################
+    ## unload parameters
     parameter_path = opt.parameter_path.lower()
     with open(parameter_path) as json_file:
         parameters = json.load(json_file)
@@ -24,24 +22,22 @@ def main():
     batch_size = parameters['batch_size']
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    ################### inference
+    ## inference
     print('Inferencing...')
     names = ['puma', 'nta', 'tract', 'block']
     losses = []
     for low_res_name, super_res_name in combinations(names, 2):
 
         ## load data
-        dataset_train, dataset_val, dataset_test, X_max = load_data(low_res_name,
-                                                                    super_res_name,
-                                                                    parameters)
-    
+        dataset_train, _, dataset_test, X_max = load_data(low_res_name, super_res_name, parameters)
+        
         ## load model
         model = GraphSR(dataset_train.linkage.to(device)).to(device)
         criterion = nn.L1Loss().to(device)
         model.load_state_dict(torch.load(f'model_state/graphSR_{low_res_name}_{super_res_name}'))
         
         ## pred
-        loss, pred_super, gt_super, gt_low = evaluation(model, criterion, device, batch_size, dataset_test)
+        loss, pred_super, gt_super, _ = evaluation(model, criterion, device, batch_size, dataset_test)
         losses.append(loss*X_max)
         
         ## load geodata

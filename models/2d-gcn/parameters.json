@@ -1,7 +1,7 @@
 {
     "data_path": "../../data-processing/reality/",
     "batch_size": 64,
-    "epochs": 3000,
+    "epochs": 2000,
     "learning_rate": 1e-4,
     "epoch_check": 100,
     "log": 0

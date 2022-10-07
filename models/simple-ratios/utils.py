@@ -1,13 +1,6 @@
-import math
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR
-from torch.nn.parameter import Parameter
-from torch.nn.modules.module import Module
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 
 class taxi_data(torch.utils.data.Dataset):
     
@@ -52,6 +45,7 @@ def load_data(low_res_name, super_res_name, parameters):
     
     ## data path
     data_path = parameters['data_path']
+    training_portion = parameters['training_portion']
     att_low_res_path = data_path+'attributes/'+low_res_name+'.npy'
     adj_low_res_path = data_path+'adjacencies/'+low_res_name+'.npy'
     att_super_res_path = data_path+'attributes/'+super_res_name+'.npy'
@@ -74,6 +68,11 @@ def load_data(low_res_name, super_res_name, parameters):
                                                                           X_super_train, 
                                                                           test_size=0.1, 
                                                                           random_state=1)
+    ## training portion
+    indices = int(len(X_low_train)*training_portion)
+    X_low_train = X_low_train[:indices]
+    X_super_train = X_super_train[:indices]
+    
     ## prepare data
     dataset_train = taxi_data(X_low_train, X_super_train, A_low, A_super, linkage)
     dataset_val = taxi_data(X_low_val, X_super_val, A_low, A_super, linkage)

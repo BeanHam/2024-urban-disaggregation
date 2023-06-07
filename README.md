@@ -1,2 +1,1 @@
-# graph-super-resolution
-super resolution using GNN
+# spatio-temporal disaggregation

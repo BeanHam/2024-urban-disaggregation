@@ -9,3 +9,5 @@ The level of granularity of open data often conflicts the benefits it can provid
 - We proposed a training approach for disaggregation task, **Chain-of-Training (COT)**, that can be incorporated into any of the training-based models. When we disaggregate from low to high geographic resolution, we add transitional disaggregation steps by incorporating intermediate geographic dimensions, and we backpropergate the loss at those transitional steps.
 
 - We adapted the idea of restoration/reconstruction (**REC**) from super-resolution domain in our disaggregation case --- together with **COT** training procedure, we first disaggregate from low to high geographic level, and then re-aggregate back to the low level from our generated high level values. We calculate disaggregation losses at both high and intermediate levels, as well as reconstruction losses.
+
+![alt text](https://github.com/BeanHam/2023-urban-disaggregation/blob/main/figures/reconstruction.png)

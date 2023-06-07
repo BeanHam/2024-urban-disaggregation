@@ -1,0 +1,10 @@
+{
+    "root": "D:/disaggregation-data/",
+    "data_name": "bikeshare",
+    "area": 54938070.82986568,
+    "batch_size": 8,
+    "epochs": 150,
+    "learning_rate": 1e-4,
+    "epoch_check": 10,
+    "tolerence":50
+}

@@ -1,0 +1,18 @@
+{
+    "root": "D:/disaggregation-data/",
+    "data_name": "taxi",
+    "area": 54938070.82986568,
+    "batch_size": 8,
+    "chunk_size": 5,
+    "epochs": 10000,
+    "learning_rate": 1e-4,
+    "epoch_check": 500,
+    "tolerence":50,
+    "dims": {
+        "puma":10,
+        "nta":32,
+        "tract":283,
+        "block":3751,
+        "extreme":11343    
+    }    
+}

@@ -1,4 +1,4 @@
-# Urban Spatiotemporal Data Synthesis via Neural Disaggregation
+# Urban Spatiotemporal Data Synthesis via Neural Disaggregation With Reconstruction
 
 The level of granularity of open data often conflicts the benefits it can provide. Less granular data can protect individual privacy, but to certain degrees, sabotage the promise of open data to promote transparency and assist research. Similar in the urban setting, aggregated urban data at high-level geographic units can mask out the underline particularities of city dynamics that may vary at lower areal levels. In this work, we aim to synthesize fine-grained, high resolution urban data, by breaking down aggregated urban data at coarse, low resolution geographic units. The goal is to increase the usability and realize the values as much as possible of highly aggregated urban data. 
 

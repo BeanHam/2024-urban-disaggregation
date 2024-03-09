@@ -1,4 +1,4 @@
-# Neural Disaggregation via Spatially Coherent Architectures
+# GRU^{spa}: Gated Recurrent Unit with Spatial Attention for Spatio-Temporal Disaggregation
 
 Open data is frequently released spatially and temporally aggregated, usually to comply with privacy policies.  Varying aggregation levels (e.g., zip code, census tract, city block) complicate the integration across variables needed to provide multi-variate training sets for downstream AI/ML systems. In this work, we consider models to disaggregate spatial data, learning a function from a low-resolution irregular partition (e.g., zip code) to s high-resolution irregular partition (e.g., city block).  
 

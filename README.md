@@ -11,4 +11,3 @@ We propose a model, Gated Recurrent Unit with Spatial Attention $(GRU^{spa})$, w
 For situations where limited historical training data is available, we study transfer learning scenarios and show that a model pre-trained on one city variable can be fine-tuned for another city variable using only a few hundred samples. Evaluating these techniques on two mobility datasets, we find that $(GRU^{spa})$ provides a significant improvement over other neural models as well as typical heuristic methods, allowing us to synthesize realistic point data over small regions useful for training downstream models.
 
 ![alt text](https://github.com/BeanHam/2023-urban-disaggregation/blob/main/figures/bikeshare_finetune_results.png)
-![alt text](https://github.com/BeanHam/2023-urban-disaggregation/blob/main/figures/911-call_finetune_results.png)

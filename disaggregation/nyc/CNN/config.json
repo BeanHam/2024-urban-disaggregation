@@ -1,9 +1,0 @@
-{
-    "root": "D:/disaggregation-data/",
-    "factor": 3751,    
-    "batch_size": 8,
-    "epochs": 150,
-    "learning_rate": 1e-4,
-    "epoch_check": 10,
-    "tolerence":50
-}

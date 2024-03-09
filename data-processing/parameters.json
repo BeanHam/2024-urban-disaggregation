@@ -1,0 +1,36 @@
+{
+    "root": "D:/all-data/nyc-taxi/raw_chunk_data/", 
+    "boundary": "D:/disaggregation-data/taxi/raw-data/taxi_zones_2010.csv", 
+    "extreme": "D:/disaggregation-data/taxi/raw-data/extreme_2010.csv",
+    "block": "D:/disaggregation-data/taxi/raw-data/block_2010.csv",
+    "tract": "D:/disaggregation-data/taxi/raw-data/tract_2010.csv",
+    "puma": "D:/disaggregation-data/taxi/raw-data/puma_2010.csv",
+    "nta": "D:/disaggregation-data/taxi/raw-data/nta_2010.csv",
+    "lat_upper": 40.877803, 
+    "lat_bottom": 40.699354, 
+    "long_left": -74.021480, 
+    "long_right": -73.907917,
+    "date_formats": {
+        "2009": "2009-01-04 02:52:00", 
+        "2011": "2011-01-29 02:38:35", 
+        "2012": "2012-01-10 23:55:50", 
+        "2013": "2013-01-01 15:11:48", 
+        "2014": "2014-01-09 20:45:25", 
+        "2015": "2015-01-08 22:44:09", 
+        "2016": "02/24/2016 03:02:59 PM"
+    }, 
+    "column_names": {
+        "2009": ["Trip_Pickup_DateTime", "Start_Lon", "Start_Lat"], 
+        "2011": ["Trip_Pickup_DateTime", "Start_Lon", "Start_Lat"], 
+        "2012": ["Trip_Pickup_DateTime", "Start_Lon", "Start_Lat"], 
+        "2013": ["Trip_Pickup_DateTime", "Start_Lon", "Start_Lat"], 
+        "2014": ["pickup_datetime", "pickup_longitude", "pickup_latitude"], 
+        "2015": ["tpep_pickup_datetime", "pickup_longitude", "pickup_latitude"], 
+        "2016": ["tpep_pickup_datetime", "pickup_longitude", "pickup_latitude"]}, 
+    "uni_columns": ["pickup_datetime", "long", "lat"], 
+    "year": "2016",
+    "zones": [12,88,87,261,13,209,45,231,232,148,144,211,125,158,249,114,113,79,4,
+              224, 137, 107, 234, 90, 68, 246, 186, 100, 164, 170, 233, 229, 162, 
+              161, 163, 230, 48, 50, 143, 142, 43, 237, 141, 140, 262, 263, 236, 75, 
+              24, 151, 238, 239, 166, 41,74,42,152,116,244,120,243,127,128]
+}

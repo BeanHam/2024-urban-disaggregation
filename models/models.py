@@ -47,97 +47,126 @@ def min_max_norm(e, exp_linkage):
     denomenator = torch.where(denomenator==0, 1e-6, denomenator)
     e = (e-min_values)/denomenator
     e = torch.where(exp_linkage>0, e, neg_vec)
-    return e
+    return e 
 
-# ---------------------
-# attention layer
-# ---------------------        
-class attention_layer(nn.Module):
+# -----------------------------
+# spatial diaggregation layer
+# -----------------------------
+class spatial_layer(nn.Module):
     
     """
     Super-Resolution of graphs
     
     """
     
-    def __init__(self, low, high, linkage):
+    def __init__(self, low, high, local, linkage):
         super().__init__()
         
-        ## linear layers
-        self.dk = high
-        self.wk = nn.Parameter(torch.randn(low,high))
-        self.wq = nn.Parameter(torch.randn(low,low))
-        self.wv = nn.Parameter(torch.randn(low,low))
+        ## parameters
+        self.low = low
+        self.high = high
+        self.local = local
         self.linkage = linkage
-        self.reset_parameters()
+        
+        ## layers
+        self.wk = nn.Linear(low, high)
+        self.wq = nn.Linear(low, low)
+        self.wv = nn.Linear(low, low)
+        self.o_proj = nn.Linear(high, high)
+        #self._reset_parameters()
+    
+    def _reset_parameters(self):
+        
+        nn.init.xavier_uniform_(self.wk.weight)
+        nn.init.xavier_uniform_(self.wq.weight)
+        nn.init.xavier_uniform_(self.wv.weight)
+        nn.init.xavier_uniform_(self.o_proj.weight)
+        self.wk.bias.data.fill_(0)
+        self.wq.bias.data.fill_(0)
+        self.wv.bias.data.fill_(0)
+        self.o_proj.bias.data.fill_(0)
 
-    def reset_parameters(self):
-        std = 1.0 / np.sqrt(self.dk)
-        for w in self.parameters():
-            w.data.uniform_(-std, std)
-            
-    def forward(self, att):
+    def forward(self, inputs):
         
-        ## projection
-        Q = torch.matmul(att, self.wq)
-        K = torch.matmul(att, self.wk)
-        V = torch.matmul(att, self.wv)        
-        e = torch.matmul(Q.permute(0,2,1), K)/np.sqrt(self.dk)
-        exp_linkage = self.linkage.clone().unsqueeze_(0).repeat(att.size(0),1,1)
-        e = min_max_norm(e, exp_linkage)        
-        attention = F.softmax(e, dim=-1)
-        x = torch.matmul(V, attention)
+        # inputs: (B,1,N)        
+        ## global attention calculation
+        ## -- global attention allows values of children regions to be from any parental region
+        Q,K,V = self.wq(inputs), self.wk(inputs), self.wv(inputs)
+        global_e = torch.matmul(Q.transpose(-1,-2), K)/np.sqrt(self.high)
+        global_attention = F.softmax(global_e, dim=-1)
+        x = torch.matmul(V, global_attention)
+
+        ## local attention
+        ## -- local attention only allows values of children regions to be from its connected parental region
+        if self.local:
+            batch_linkage = self.linkage.clone().unsqueeze_(0).repeat(inputs.size(0),1,1)
+            local_e = min_max_norm(global_e, batch_linkage)
+            local_attention = F.softmax(local_e, dim=-1)
+            local_x = torch.matmul(V, local_attention)
+            x = x + local_x
+        #else:
+        #    global_attention = F.softmax(global_e, dim=-1)
+        #    x = torch.matmul(V, global_attention)
         
+        ## output projection
+        x = self.o_proj(x)
+
         return x
 
-# -----------------------
-# Disaggreation Attention
-# -----------------------
-class DisAttention(nn.Module):
+# -------------------------
+# Spatial Disaggregtion
+# -------------------------
+class SpatialDisaggregtion(nn.Module):
     
     """
     multi-head attention layer
     """
     
-    def __init__(self, low, high, nheads, linkage):
+    def __init__(self, low, high, nheads, local, linkage):
         
-        super(DisAttention, self).__init__()
-        self.attentions = [attention_layer(low, high, linkage) for _ in range(nheads)]
+        super(SpatialDisaggregtion, self).__init__()
+        
+        self.attentions = [spatial_layer(low, high, local, linkage) for _ in range(nheads)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
-        self.out_layer = nn.Linear(high*nheads, high, bias=True)
-
+        self.o_proj = nn.Linear(high*nheads, high)        
+        
     def forward(self, x):
         x = torch.cat([att(x) for att in self.attentions], dim=-1)
-        x = self.out_layer(x)
+        x = self.o_proj(x)
         return x
-    
+
 # ---------------------
-# GRU cell
+# GRUSPA cell
 # ---------------------       
-class GRUCell(nn.Module):
+class GRUSPACell(nn.Module):
 
     """
     An implementation of GRUCell.
 
     """
 
-    def __init__(self, input_size, hidden_size, nheads, linkage):
-        super(GRUCell, self).__init__()
+    def __init__(self, low, high, nheads, local, linkage):
+        super(GRUSPACell, self).__init__()
         
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.x2r = DisAttention(input_size, hidden_size, nheads, linkage)
-        self.x2z = DisAttention(input_size, hidden_size, nheads, linkage)
-        self.x2n = DisAttention(input_size, hidden_size, nheads, linkage)        
-        self.h2r = nn.Linear(hidden_size, hidden_size, bias=True)
-        self.h2z = nn.Linear(hidden_size, hidden_size, bias=True)
-        self.h2n = nn.Linear(hidden_size, hidden_size, bias=True)
-        self.reset_parameters()
+        self.low = low
+        self.high = high
+        self.x2r = SpatialDisaggregtion(low, high, nheads, local, linkage)
+        self.x2z = SpatialDisaggregtion(low, high, nheads, local, linkage)
+        self.x2n = SpatialDisaggregtion(low, high, nheads, local, linkage)        
+        self.h2r = nn.Linear(high, high, bias=True)
+        self.h2z = nn.Linear(high, high, bias=True)
+        self.h2n = nn.Linear(high, high, bias=True)
+        #self.reset_parameters()
 
-    def reset_parameters(self):
-        std = 1.0 / math.sqrt(self.hidden_size)
-        for w in self.parameters():
-            w.data.uniform_(-std, std)
+    def _reset_parameters(self):
+        
+        nn.init.xavier_uniform_(self.h2r.weight)
+        nn.init.xavier_uniform_(self.h2r.weight)
+        nn.init.xavier_uniform_(self.h2r.weight)
+        self.h2r.bias.data.fill_(0)
+        self.h2r.bias.data.fill_(0)
+        self.h2r.bias.data.fill_(0)
     
     def forward(self, x, h):
         
@@ -162,26 +191,37 @@ class GRUCell(nn.Module):
         return hy
 
 # ---------------------
-# GRU model
+# STTD model
 # ---------------------      
-class GRU(nn.Module):
-    def __init__(self, input_dim, hidden_dim, nheads, linkage):
-        super(GRU, self).__init__()
+class GRUSPA(nn.Module):
+    def __init__(self, 
+                 linkage,
+                 parameters):
+        super(GRUSPA, self).__init__()
         
-        # Hidden dimensions
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.gru_cell = GRUCell(input_dim, hidden_dim, nheads, linkage)            
+        # parameters
+        self.parameters = parameters
+        self.low = parameters['low']
+        self.high = parameters['high']
+        self.num_heads = parameters['num_heads']
+        self.time_steps = parameters['time_steps']
+        self.local = parameters['local']=='yes'
+        self.gruspa_cell = GRUSPACell(self.low, 
+                                      self.high,
+                                      self.num_heads,
+                                      self.local,
+                                      linkage)            
              
     def forward(self, x):
         
-        hn = Variable(torch.zeros(x.size(0), 1, self.hidden_dim).cuda())
+        # x: (batch_size, in_steps, num_nodes)
+        hn = Variable(torch.zeros(x.size(0), 1, self.high).cuda())
         out = []
         for seq in range(x.size(1)):
-            hn = self.gru_cell(x[:,seq,:].clone().unsqueeze_(1), hn) 
+            hn = self.gruspa_cell(x[:,seq,:].clone().unsqueeze_(1), hn) 
             out.append(hn)
         out = torch.concat(out,dim=1)
-        return out 
+        return out     
     
 # ---------------------
 # PUMA TO NTA
@@ -193,34 +233,27 @@ class puma_nta(nn.Module):
     
     """
     
-    def __init__(self, hidden_dims, nheads, linkages, rec):
+    def __init__(self, linkage, rec, parameters):
         super().__init__()
         
-        self.hidden_dims = hidden_dims
         self.rec = rec
-        self.puma_nta = linkages[0]
-        
-        ## gru layers
-        self.gru0 = GRU(self.hidden_dims[0], self.hidden_dims[1], nheads, self.puma_nta)
-        self.gru1 = nn.GRU(self.hidden_dims[1], self.hidden_dims[1], batch_first=True)
+        self.linkage = linkage
+        self.gruspa = GRUSPA(linkage, parameters)
 
-    def forward(self, att):
+    def forward(self, x):
         
         ## projection
-        nta = self.gru0(att)
-        #nta,_ = self.gru1(F.relu(nta))
+        nta = self.gruspa(x)
 
         ## reconstruction
         if self.rec == 'no':
-            rec_pumas = []
+            rec_puma = None
         else: 
-            rec_pumas = [
-                torch.matmul(nta, self.puma_nta.T)
-            ]
+            rec_puma = torch.matmul(nta, self.linkage.T)
         
         return {
             'nta': nta,
-            'rec_pumas':rec_pumas
+            'rec_puma':rec_puma
         }
 
 # ---------------------
@@ -233,56 +266,27 @@ class puma_tract(nn.Module):
     
     """
     
-    def __init__(self, hidden_dims, nheads, linkages, rec):
+    def __init__(self, linkage, rec, parameters):
         super().__init__()
         
-        self.hidden_dims = hidden_dims
         self.rec = rec        
-        self.puma_nta = linkages[0]
-        self.puma_tract = linkages[1]
-        self.nta_tract = linkages[2]  
-        
-        ## gru layers
-        self.gru0 = GRU(self.hidden_dims[0], self.hidden_dims[2], nheads, self.puma_tract)
-        self.gru1 = nn.GRU(self.hidden_dims[2], self.hidden_dims[2], batch_first=True)
+        self.linkage = linkage
+        self.gruspa = GRUSPA(linkage, parameters)
 
-    def forward(self, att):
+    def forward(self, x):
         
         ## projection
-        tract = self.gru0(att)
-        #tract,_ = self.gru1(F.relu(tract))
+        tract = self.gruspa(x)
 
         ## reconstruction
         if self.rec == 'no': 
-            rec_pumas = []
-            rec_ntas = []
-        elif self.rec == 'bridge':
-            rec_pumas = [
-                torch.matmul(nta, self.puma_nta.T)
-            ]            
-            rec_ntas = [
-                torch.matmul(tract, self.nta_tract.T)
-            ]
-        elif self.rec == 'bottomup':
-            rec_pumas = [
-                torch.matmul(tract, self.puma_tract.T)
-            ]            
-            rec_ntas = [
-                torch.matmul(tract, self.nta_tract.T)
-            ]
+            rec_puma = None
         else:
-            rec_pumas = [
-                torch.matmul(nta, self.puma_nta.T),
-                torch.matmul(tract, self.puma_tract.T)
-            ]         
-            rec_ntas = [
-                torch.matmul(tract, self.nta_tract.T)
-            ]
+            rec_puma = torch.matmul(tract, self.linkage.T)
             
         return {
             'tract': tract,
-            'rec_pumas':rec_pumas,
-            'rec_ntas': rec_ntas
+            'rec_puma':rec_puma
         }
 
 # ---------------------
@@ -295,70 +299,25 @@ class puma_block(nn.Module):
     
     """
     
-    def __init__(self, hidden_dims, nheads, linkages, rec):
+    def __init__(self, linkage, rec, parameters):
         super().__init__()
         
-        self.hidden_dims = hidden_dims
         self.rec = rec        
-        self.puma_nta = linkages[0]
-        self.puma_tract = linkages[1]
-        self.puma_block = linkages[2] 
-        self.nta_tract = linkages[3]
-        self.nta_block = linkages[4]
-        self.tract_block = linkages[5]  
-        
-        ## gru layers
-        self.gru0 = GRU(self.hidden_dims[0], self.hidden_dims[3], nheads, self.puma_block)
-        self.gru1 = nn.GRU(self.hidden_dims[3], self.hidden_dims[3], batch_first=True)
+        self.linkage = linkage
+        self.gruspa = GRUSPA(linkage, parameters)
 
-    def forward(self, att):
+    def forward(self, x):
         
         ## projection
-        block = self.gru0(att)
-        #block,_ = self.gru1(F.relu(block))
+        block = self.gruspa(x)
 
         ## reconstruction
         if self.rec == 'no': 
-            rec_pumas = []
-            rec_ntas = []
-            rec_tracts = []
-        elif self.rec == 'bridge':
-            rec_pumas = [
-                torch.matmul(nta, self.puma_nta.T)
-            ]        
-            rec_ntas = [
-                torch.matmul(tract, self.nta_tract.T)
-            ]        
-            rec_tracts = [
-                torch.matmul(block, self.tract_block.T)
-            ]
-        elif self.rec == 'bottomup':
-            rec_pumas = [
-                torch.matmul(block, self.puma_block.T)
-            ]        
-            rec_ntas = [
-                torch.matmul(block, self.nta_block.T)
-            ]        
-            rec_tracts = [
-                torch.matmul(block, self.tract_block.T)
-            ]
+            rec_puma = None
         else:
-            rec_pumas = [
-                torch.matmul(nta, self.puma_nta.T),
-                torch.matmul(tract, self.puma_tract.T),
-                torch.matmul(block, self.puma_block.T)
-            ]            
-            rec_ntas = [
-                torch.matmul(tract, self.nta_tract.T),
-                torch.matmul(block, self.nta_block.T)
-            ]            
-            rec_tracts = [
-                torch.matmul(block, self.tract_block.T)
-            ]
+            rec_puma = torch.matmul(block, self.linkage.T)
         
         return {
             'block': block,
-            'rec_pumas':rec_pumas,
-            'rec_ntas': rec_ntas,
-            'rec_tracts': rec_tracts
+            'rec_puma':rec_puma
         }    

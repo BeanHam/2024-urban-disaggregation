@@ -26,14 +26,12 @@ def main():
     #-------------------------
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', required=True, help='data name')
-    parser.add_argument('--nheads', required=True, help='data name')
-    parser.add_argument('--cot', required=True, help='whether to do chain-of-training. Values: yes/no')
-    parser.add_argument('--rec', required=True, help='which reconstruction to do. Values: no/bottomup/bridge/full')
+    parser.add_argument('--rec', required=True, help='whether or not to reconstruct')
+    parser.add_argument('--local', required=True, help='whether or not to use local attention')    
     args = parser.parse_args()
     data = args.data
-    nheads = int(args.nheads)
-    cot = args.cot
     rec = args.rec
+    local = args.local
 
     # ----------------
     # Load Parameters
@@ -45,110 +43,76 @@ def main():
     root = parameters['root']
     epochs = parameters['epochs']
     tolerence = parameters['tolerence']
-    batch_size = parameters['batch_size']  
+    batch_size = parameters['batch_size']
     epoch_check = parameters['epoch_check']
     learning_rate = parameters['learning_rate']
     parameters['path'] = root+data
-    parameters['cot'] = cot
-    parameters['rec'] = rec    
+    parameters['rec'] = rec
+    parameters['local'] = local
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    resolutions = [('puma', 'nta'),]
+    resolutions = [#('puma', 'nta'),]
                    #('puma', 'tract'),]
-                   #('puma', 'block')]
+                   ('puma', 'block')]
     print('=======================')
     print(f'---Dataset: {data}')
-    print(f'---COT: {cot}')
     print(f'---REC: {rec}')
+    print(f'---LOCAL: {local}')
     
     # -------------------
     # Iterate Resolutions
     # -------------------
-    for low, high in resolutions:
+    for coarse, fine in resolutions:
         
         # ----------------
         # Load Data
         # ----------------
         print('=======================')
-        print(f'{low} -> {high}...')
+        print(f'{coarse} -> {fine}...')
         print('   ---Load Datasets...')
-        parameters['low'] = low
-        parameters['high'] = high 
+        parameters['coarse'] = coarse
+        parameters['fine'] = fine
+        parameters['low'] = dims[coarse]
+        parameters['high'] = dims[fine]
+        learning_rate_factor = parameters['learning_rate_factor'][data][fine]
         dataset_train, dataset_val, _, _, linkages = load_data(parameters)
-        
+
         # ----------------
         # Initialize Model
         # ----------------
         print('   ---Initialize Model...')
-        if high == 'nta':
-            linkages = [             
-                linkages['puma_nta'].to(device)
-            ]
-            hidden_dims = [
-                dims['puma'], 
-                dims['nta']
-            ]
-            model = puma_nta(
-                hidden_dims, 
-                nheads,
-                linkages, 
-                rec).to(device)
-        
-        elif high == 'tract':
-            linkages = [           
-                linkages['puma_nta'].to(device), 
-                linkages['puma_tract'].to(device), 
-                linkages['nta_tract'].to(device)
-            ]            
-            hidden_dims = [
-                dims['puma'], 
-                dims['nta'], 
-                dims['tract']
-            ]
-            model = puma_tract(
-                hidden_dims, 
-                nheads,
-                linkages, 
-                rec).to(device)
-            
+        if fine == 'nta':
+            linkage = linkages['puma_nta'].to(device)
+            model = puma_nta(linkage, rec, parameters).to(device)
+        elif fine == 'tract':
+            linkage = linkages['puma_tract'].to(device)
+            model = puma_tract(linkage, rec, parameters).to(device)
         else:
-            linkages = [
-                linkages['puma_nta'].to(device), 
-                linkages['puma_tract'].to(device), 
-                linkages['puma_block'].to(device),                        
-                linkages['nta_tract'].to(device), 
-                linkages['nta_block'].to(device), 
-                linkages['tract_block'].to(device)
-            ]            
-            hidden_dims = [
-                dims['puma'], 
-                dims['nta'],
-                dims['tract'], 
-                dims['block']
-            ]
-            model = puma_block(
-                hidden_dims, 
-                nheads,
-                linkages, 
-                rec).to(device)
-                                
+            linkage = linkages['puma_block'].to(device)
+            model = puma_block(linkage, rec, parameters).to(device)
+        
         # ----------------
         # Initialize Opt
         # ----------------
         es = EarlyStopping(model, tolerance=tolerence)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.9, threshold=1e-8, verbose=True)
-        print(f'   ---Model Size: {sum(p.numel() for p in model.parameters())}')
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                               'min', 
+                                                               factor=learning_rate_factor, 
+                                                               #min_lr=1e-5, 
+                                                               patience=25)
+        print(f'   --- Model Size: {sum(p.numel() for p in model.parameters())}')
+        loss_track = []
         
         # -----------------
         # Continue Training
         # -----------------
-        if os.path.exists(f'model_state/{data}_{low}_{high}_cot_{cot}_rec_{rec}_nheads_{nheads}'):
-            model.load_state_dict(torch.load(f'model_state/{data}_{low}_{high}_cot_{cot}_rec_{rec}_nheads_{nheads}'))
-            loss_track = np.load(f'logs/{data}_{low}_{high}_cot_{cot}_rec_{rec}_nheads_{nheads}.npy').tolist()
+        if os.path.exists(f'model_state/{data}_{coarse}_{fine}_rec_{rec}_local_{local}'):
+            model.load_state_dict(torch.load(f'model_state/{data}_{coarse}_{fine}_rec_{rec}_local_{local}'))
+            loss_track = np.load(f'logs/{data}_{coarse}_{fine}_rec_{rec}_local_{local}.npy').tolist()
             es.loss_min = loss_track[-1]
         else:
             loss_track = []
-        
+
         # ----------------
         # Iterate Epochs
         # ----------------
@@ -159,10 +123,10 @@ def main():
             # Training
             # ----------------
             model.train()
-            train(model, 
+            train(model,
                   optimizer,
-                  device, 
-                  batch_size, 
+                  device,
+                  batch_size,
                   dataset_train,
                   parameters)
             
@@ -170,32 +134,33 @@ def main():
             # Evaluation
             # ----------------
             model.eval()
-            eval_results = evaluation(model, 
-                                      device, 
-                                      batch_size, 
+            eval_results = evaluation(model,
+                                      device,
+                                      batch_size,
                                       dataset_val,
                                       parameters)
             loss = eval_results['loss']
-            loss_track.append(loss)
             scheduler.step(loss)
-            
+
             # ----------------
             # Early Stop Check
             # ----------------
-            es(loss)            
+            es(loss)
             if es.early_stop:
                 print(f" Early Stopping at Epoch {epoch}")
-                print(f' Validation Loss: {round(loss*1000, 5)}')
-                break                
-            if es.save_model:     
-                torch.save(model.state_dict(), f'model_state/{data}_{low}_{high}_cot_{cot}_rec_{rec}_nheads_{nheads}')
-                np.save(f'logs/{data}_{low}_{high}_cot_{cot}_rec_{rec}_nheads_{nheads}.npy', loss_track)
+                print(f' Validation Loss: {round(loss_track[-1]*1000, 5)}')
+                break
+            if es.save_model:
+                loss_track.append(loss)
+                torch.save(model.state_dict(), f'model_state/{data}_{coarse}_{fine}_rec_{rec}_local_{local}')
+                np.save(f'logs/{data}_{coarse}_{fine}_rec_{rec}_local_{local}.npy', loss_track)
             
             # ----------------
             # Progress Check
             # ----------------
-            if epoch % epoch_check == 0: print(f' Validation Loss: {round(loss*1000, 5)}')
-                    
+            if epoch % epoch_check == 0:
+                print(f' Validation Loss: {round(loss*1000, 5)}. Learning Rate: {scheduler.get_last_lr()[0]}')
+            
         print('Done Training...')
         print('                ')
 

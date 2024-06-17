@@ -50,9 +50,9 @@ def main():
     # arguments
     #-------------------------
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_name', required=True, help='filename of test data')
+    parser.add_argument('--data', required=True, help='filename of test data')
     args = parser.parse_args()
-    data_name = args.data_name
+    data_name = args.data
     if data_name == 'taxi': root='D:/disaggregation-data/taxi/'
     elif data_name == 'bikeshare': root='D:/disaggregation-data/bikeshare/'
     else: root='D:/disaggregation-data/911/'
@@ -64,14 +64,14 @@ def main():
     geodata_nta, att_nta = load_geodata_attributes('nta',root)
     geodata_tract, att_tract = load_geodata_attributes('tract',root)
     geodata_block, att_block = load_geodata_attributes('block',root)
-    geodata_extreme, att_extreme = load_geodata_attributes('extreme',root)
+    #geodata_extreme, att_extreme = load_geodata_attributes('extreme',root)
     
     #--------------------
     # parameters
     #--------------------
-    geodatas = [geodata_puma, geodata_nta, geodata_tract, geodata_block, geodata_extreme]
-    atts = [att_puma, att_nta, att_tract, att_block, att_extreme]
-    names = ['puma', 'nta', 'tract', 'block', 'extreme']
+    geodatas = [geodata_puma, geodata_nta, geodata_tract, geodata_block]
+    atts = [att_puma, att_nta, att_tract, att_block]
+    names = ['puma', 'nta', 'tract', 'block']
     img_size = (128,256)
     fig_size = (1.28,2.56)
 

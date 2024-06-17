@@ -184,8 +184,7 @@ def get_attributes_taxi(parameters,
                         geodata_puma, 
                         geodata_nta,
                         geodata_tract,
-                        geodata_block,
-                        geodata_extreme):
+                        geodata_block):
     
     """
     
@@ -212,14 +211,12 @@ def get_attributes_taxi(parameters,
     geodata_nta = geopandas.GeoDataFrame(geodata_nta, geometry='geometry')
     geodata_tract = geopandas.GeoDataFrame(geodata_tract, geometry='geometry')
     geodata_block = geopandas.GeoDataFrame(geodata_block, geometry='geometry')
-    geodata_extreme = geopandas.GeoDataFrame(geodata_extreme, geometry='geometry')
     
     ## load all data
     X_puma = []
     X_nta = []
     X_tract = []
     X_block = []
-    X_extreme = []
     
     print(f"   -- Load {year} data...")
     dirt = root + year + '/'
@@ -282,39 +279,33 @@ def get_attributes_taxi(parameters,
                 nta_count = count(geodata_nta, hourly_data)
                 tract_count = count(geodata_tract, hourly_data)
                 block_count = count(geodata_block, hourly_data)
-                extreme_count = count(geodata_extreme, hourly_data)
     
                 X_puma.append(puma_count)
                 X_nta.append(nta_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
                 
             else:
                 puma_count = np.zeros(len(geodata_puma))
                 nta_count = np.zeros(len(geodata_nta))
                 tract_count = np.zeros(len(geodata_tract))
                 block_count = np.zeros(len(geodata_block))
-                extreme_count = np.zeros(len(geodata_extreme))
                 
                 X_puma.append(puma_count)
                 X_nta.append(nta_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)    
     
     ## stack data
     X_puma = np.stack(X_puma)
     X_nta = np.stack(X_nta)
     X_tract = np.stack(X_tract)
     X_block = np.stack(X_block)
-    X_extreme = np.stack(X_extreme)
         
     np.save(f'D:/disaggregation-data/taxi/attributes/puma.npy', X_puma)
     np.save(f'D:/disaggregation-data/taxi/attributes/nta.npy', X_nta)
     np.save(f'D:/disaggregation-data/taxi/attributes/tract.npy', X_tract)
     np.save(f'D:/disaggregation-data/taxi/attributes/block.npy', X_block)
-    np.save(f'D:/disaggregation-data/taxi/attributes/extreme.npy', X_extreme)
         
     print(f"Done!")
     
@@ -326,8 +317,7 @@ def get_attributes_bikeshare(parameters,
                              geodata_puma, 
                              geodata_nta,
                              geodata_tract,
-                             geodata_block,
-                             geodata_extreme):
+                             geodata_block):
     
     """
     
@@ -354,14 +344,12 @@ def get_attributes_bikeshare(parameters,
     geodata_nta = geopandas.GeoDataFrame(geodata_nta, geometry='geometry')
     geodata_tract = geopandas.GeoDataFrame(geodata_tract, geometry='geometry')
     geodata_block = geopandas.GeoDataFrame(geodata_block, geometry='geometry')
-    geodata_extreme = geopandas.GeoDataFrame(geodata_extreme, geometry='geometry')
     
     ## load all data
     X_puma = []
     X_nta = []
     X_tract = []
     X_block = []
-    X_extreme = []
     
     print(f"   -- Load {year} data...")
     dirt = root + str(year) + '/'
@@ -398,7 +386,7 @@ def get_attributes_bikeshare(parameters,
     whole_data['time'] = hours
     UNIQUE_DATES = np.unique(dates)
     UNIQUE_TIME = np.unique(hours)
-    UNIQUE_DATES = np.array(UNIQUE_DATES)[np.array(UNIQUE_DATES)<='2021-06-30']
+    #UNIQUE_DATES = np.array(UNIQUE_DATES)[np.array(UNIQUE_DATES)<='2021-06-30']
     
     ## iterate unique date & time
     for uni_date in tqdm(UNIQUE_DATES):
@@ -414,40 +402,34 @@ def get_attributes_bikeshare(parameters,
                 nta_count = count(geodata_nta, hourly_data)
                 tract_count = count(geodata_tract, hourly_data)
                 block_count = count(geodata_block, hourly_data)
-                extreme_count = count(geodata_extreme, hourly_data)
     
                 X_puma.append(puma_count)
                 X_nta.append(nta_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
                 
             else:
                 puma_count = np.zeros(len(geodata_puma))
                 nta_count = np.zeros(len(geodata_nta))
                 tract_count = np.zeros(len(geodata_tract))
                 block_count = np.zeros(len(geodata_block))
-                extreme_count = np.zeros(len(geodata_extreme))
                 
                 X_puma.append(puma_count)
                 X_nta.append(nta_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
     
     ## aggregate
     X_puma = np.stack(X_puma)
     X_nta = np.stack(X_nta)
     X_tract = np.stack(X_tract)
     X_block = np.stack(X_block)
-    X_extreme = np.stack(X_extreme)
         
     ## save data
     np.save(f'D:/disaggregation-data/bikeshare/attributes/puma.npy', X_puma)
     np.save(f'D:/disaggregation-data/bikeshare/attributes/nta.npy', X_nta)
     np.save(f'D:/disaggregation-data/bikeshare/attributes/tract.npy', X_tract)
     np.save(f'D:/disaggregation-data/bikeshare/attributes/block.npy', X_block)
-    np.save(f'D:/disaggregation-data/bikeshare/attributes/extreme.npy', X_extreme)
     
     print(f"Done!")
     
@@ -459,8 +441,7 @@ def get_attributes_911(parameters,
                        geodata_puma, 
                        geodata_nta,
                        geodata_tract,
-                       geodata_block,
-                       geodata_extreme):
+                       geodata_block):
     
     """
     
@@ -484,14 +465,12 @@ def get_attributes_911(parameters,
     geodata_nta = geopandas.GeoDataFrame(geodata_nta, geometry='geometry')
     geodata_tract = geopandas.GeoDataFrame(geodata_tract, geometry='geometry')
     geodata_block = geopandas.GeoDataFrame(geodata_block, geometry='geometry')
-    geodata_extreme = geopandas.GeoDataFrame(geodata_extreme, geometry='geometry')
     
     ## load all data
     X_puma = []
     X_nta = []
     X_tract = []
     X_block = []
-    X_extreme = []
     
     data = pd.read_csv(root)
     data = data[data.BORO_NM == 'MANHATTAN']
@@ -506,7 +485,7 @@ def get_attributes_911(parameters,
     data = geopandas.GeoDataFrame(data, geometry=geopandas.points_from_xy(data.long, data.lat))
     UNIQUE_DATES = np.unique(data['date'])
     UNIQUE_TIME = np.unique(data['time'])
-    UNIQUE_DATES = np.array(UNIQUE_DATES)[np.array(UNIQUE_DATES)<='06/30/2022']
+    #UNIQUE_DATES = np.array(UNIQUE_DATES)[np.array(UNIQUE_DATES)<='06/30/2022']
     
     ## iterate unique date & time
     for uni_date in tqdm(UNIQUE_DATES):
@@ -522,40 +501,34 @@ def get_attributes_911(parameters,
                 nta_count = count(geodata_nta, hourly_data)
                 tract_count = count(geodata_tract, hourly_data)
                 block_count = count(geodata_block, hourly_data)
-                extreme_count = count(geodata_extreme, hourly_data)
     
                 X_puma.append(puma_count)
                 X_nta.append(nta_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
                 
             else:
                 puma_count = np.zeros(len(geodata_puma))
                 nta_count = np.zeros(len(geodata_nta))
                 tract_count = np.zeros(len(geodata_tract))
                 block_count = np.zeros(len(geodata_block))
-                extreme_count = np.zeros(len(geodata_extreme))
                 
                 X_puma.append(puma_count)
                 X_nta.append(nta_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
     
     ## aggregate
     X_puma = np.stack(X_puma)
     X_nta = np.stack(X_nta)
     X_tract = np.stack(X_tract)
     X_block = np.stack(X_block)
-    X_extreme = np.stack(X_extreme)
         
     ## save data
     np.save(f'D:/disaggregation-data/911/attributes/puma.npy', X_puma)
     np.save(f'D:/disaggregation-data/911/attributes/nta.npy', X_nta)
     np.save(f'D:/disaggregation-data/911/attributes/tract.npy', X_tract)
     np.save(f'D:/disaggregation-data/911/attributes/block.npy', X_block)
-    np.save(f'D:/disaggregation-data/911/attributes/extreme.npy', X_extreme)
     
     print(f"Done!")
     
@@ -565,8 +538,7 @@ def get_attributes_911(parameters,
 def get_attributes_chicago(parameters,
                            geodata_community,
                            geodata_tract,
-                           geodata_block,
-                           geodata_extreme):
+                           geodata_block):
     
     """
     
@@ -583,13 +555,11 @@ def get_attributes_chicago(parameters,
     geodata_community = geopandas.GeoDataFrame(geodata_community, geometry='geometry')
     geodata_tract = geopandas.GeoDataFrame(geodata_tract, geometry='geometry')
     geodata_block = geopandas.GeoDataFrame(geodata_block, geometry='geometry')
-    geodata_extreme = geopandas.GeoDataFrame(geodata_extreme, geometry='geometry')
     
     ## load all data
     X_community = []
     X_tract = []
     X_block = []
-    X_extreme = []
     
     print(f"   -- Load data...")
     data = pd.read_csv(root)
@@ -626,34 +596,28 @@ def get_attributes_chicago(parameters,
                 community_count = count(geodata_community, hourly_data)
                 tract_count = count(geodata_tract, hourly_data)
                 block_count = count(geodata_block, hourly_data)
-                extreme_count = count(geodata_extreme, hourly_data)
     
                 X_community.append(community_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
                 
             else:
                 
                 community_count = np.zeros(len(geodata_community))
                 tract_count = np.zeros(len(geodata_tract))
                 block_count = np.zeros(len(geodata_block))
-                extreme_count = np.zeros(len(geodata_extreme))
     
                 X_community.append(community_count)
                 X_tract.append(tract_count)
                 X_block.append(block_count)
-                X_extreme.append(extreme_count)
                     
     ## stack data
     X_community = np.stack(X_community)
     X_tract = np.stack(X_tract)
     X_block = np.stack(X_block)
-    X_extreme = np.stack(X_extreme)
         
     np.save(f'D:/disaggregation-data/chicago/attributes/community.npy', X_community)
     np.save(f'D:/disaggregation-data/chicago/attributes/tract.npy', X_tract)
     np.save(f'D:/disaggregation-data/chicago/attributes/block.npy', X_block)
-    np.save(f'D:/disaggregation-data/chicago/attributes/extreme.npy', X_extreme)
         
     print(f"Done!")    

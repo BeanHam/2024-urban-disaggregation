@@ -26,14 +26,12 @@ def main():
     #-------------------------
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', required=True, help='data name')
-    parser.add_argument('--nheads', required=True, help='data name')
-    parser.add_argument('--cot', required=True, help='whether to do chain-of-training. Values: yes/no')
-    parser.add_argument('--rec', required=True, help='which reconstruction to do. Values: no/bottomup/bridge/full')
+    parser.add_argument('--rec', required=True, help='whether or not to reconstruct')
+    parser.add_argument('--local', required=True, help='whether or not to use local attention')  
     args = parser.parse_args()
     data = args.data
-    nheads = int(args.nheads)
-    cot = args.cot
     rec = args.rec
+    local = args.local  
 
     # ----------------
     # Load Parameters
@@ -44,8 +42,8 @@ def main():
     root = parameters['root']
     dims = parameters['dims']
     batch_size = parameters['batch_size']
-    parameters['cot'] = cot
-    parameters['rec'] = rec    
+    parameters['rec'] = rec
+    parameters['local'] = local
     device = "cuda" if torch.cuda.is_available() else "cpu"
     resolutions = [('puma', 'nta'),
                    ('puma', 'tract'),
@@ -59,15 +57,17 @@ def main():
     # Iterate Resolutions
     # -------------------
     print('Inferencing...')    
-    for low, high in resolutions:
+    for coarse, fine in resolutions:
         
         # ----------------
         # Inference
         # ----------------    
         print('   =======================')
-        print(f'   {low} -> {high}...')
-        parameters['low'] = low
-        parameters['high'] = high
+        print(f'{coarse} -> {fine}...')
+        parameters['coarse'] = coarse
+        parameters['fine'] = fine
+        parameters['low'] = dims[coarse]
+        parameters['high'] = dims[fine]
         parameters['path'] = root+data
         _, _, _, _, linkages = load_data(parameters) 
         losses = []
@@ -76,59 +76,17 @@ def main():
         # Initialize Model
         # ----------------
         print('   ---Initialize Model...')
-        if high == 'nta':
-            linkages = [             
-                linkages['puma_nta'].to(device)
-            ]
-            hidden_dims = [
-                dims['puma'], 
-                dims['nta']
-            ]
-            model = puma_nta(
-                hidden_dims, 
-                nheads,
-                linkages, 
-                rec).to(device)
-        
-        elif high == 'tract':
-            linkages = [           
-                linkages['puma_nta'].to(device), 
-                linkages['puma_tract'].to(device), 
-                linkages['nta_tract'].to(device)
-            ]            
-            hidden_dims = [
-                dims['puma'], 
-                dims['nta'], 
-                dims['tract']
-            ]
-            model = puma_tract(
-                hidden_dims, 
-                nheads,
-                linkages, 
-                rec).to(device)
-            
+        if fine == 'nta':
+            linkage = linkages['puma_nta'].to(device)
+            model = puma_nta(linkage, rec, parameters).to(device)
+        elif fine == 'tract':
+            linkage = linkages['puma_tract'].to(device)
+            model = puma_tract(linkage, rec, parameters).to(device)
         else:
-            linkages = [
-                linkages['puma_nta'].to(device), 
-                linkages['puma_tract'].to(device), 
-                linkages['puma_block'].to(device),                        
-                linkages['nta_tract'].to(device), 
-                linkages['nta_block'].to(device), 
-                linkages['tract_block'].to(device)
-            ]            
-            hidden_dims = [
-                dims['puma'], 
-                dims['nta'],
-                dims['tract'], 
-                dims['block']
-            ]
-            model = puma_block(
-                hidden_dims, 
-                nheads,
-                linkages, 
-                rec).to(device)
+            linkage = linkages['puma_block'].to(device)
+            model = puma_block(linkage, rec, parameters).to(device)
         
-        model.load_state_dict(torch.load(f'model_state/{data}_{low}_{high}_cot_{cot}_rec_{rec}_nheads_{nheads}'))
+        model.load_state_dict(torch.load(f'model_state/{data}_{coarse}_{fine}_rec_{rec}_local_{local}'))
         model.eval()
         
         # ----------------
@@ -144,14 +102,14 @@ def main():
             
             # ----------------
             # Prediction
-            # ----------------            
+            # ----------------
             eval_results = evaluation(model, 
                                       device, 
                                       batch_size, 
                                       dataset_test,
                                       parameters)
             preds = eval_results['preds']
-            gts = eval_results['gts']        
+            gts = eval_results['gts']
             losses.append(
                 torch.mean(
                     torch.sum(torch.abs(preds-gts), dim=1)/dims['block']
@@ -168,7 +126,7 @@ def main():
         index=resolutions,
         columns=domains
     )
-    all_losses.to_csv(f'{data}_results_nheads_{nheads}.csv')
+    all_losses.to_csv(f'{data}_results_rec_{rec}_local_{local}.csv')
     print('Done...')
     
 if __name__ == "__main__":
